@@ -1,4 +1,4 @@
-# NoteStream 📱 → 💻
+# NoteStream build in rust 📱 → 💻
 
 **Type from your Android device into any Windows application** — notepad, browser,
 file explorer, terminal, anything. Zero installation on Android — just open a URL.
