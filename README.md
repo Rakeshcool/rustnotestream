@@ -49,7 +49,7 @@ $ cargo run --release
 
 ```bash
 git clone https://github.com/Rakeshcool/rustnotestream
-cd notestream
+cd rustnotestream
 cargo build --release
 ```
 
