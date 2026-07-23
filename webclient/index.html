@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>NoteStream</title>
+    <link rel="manifest" href="/static/manifest.json">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #1c2333;
+            --bg-card: #1a1f2e;
+            --bg-hover: #242b3d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #484f58;
+            --accent: #58a6ff;
+            --accent-hover: #79c0ff;
+            --accent-glow: rgba(88,166,255,0.15);
+            --accent-dim: rgba(88,166,255,0.08);
+            --success: #3fb950;
+            --success-glow: rgba(63,185,80,0.15);
+            --warning: #d29922;
+            --danger: #f85149;
+            --border-color: #30363d;
+            --radius-sm: 8px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+            --shadow-lg: 0 8px 32px rgba(0,0,0,0.4);
+            --font-mono: 'SF Mono','Fira Code','Cascadia Code',monospace;
+            --safe-bottom: env(safe-area-inset-bottom,16px);
+        }
+
+        html, body {
+            height: 100%; overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            touch-action: manipulation;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .app-shell {
+            display: flex; flex-direction: column;
+            height: 100%; height: 100dvh;
+            max-width: 480px; margin: 0 auto;
+            background: var(--bg-primary); position: relative;
+        }
+
+        /* Status Bar */
+        .status-bar {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 12px 20px 8px; flex-shrink: 0;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .status-left { display: flex; align-items: center; gap: 10px; }
+        .logo {
+            font-size: 20px; font-weight: 700; letter-spacing: -0.5px;
+            background: linear-gradient(135deg, var(--accent), #a371f7);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .status-indicator { display: flex; align-items: center; gap: 6px; }
+        .status-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            transition: all 0.4s cubic-bezier(0.4,0,0.2,1);
+        }
+        .status-dot.connecting { background: var(--warning); animation: pulse-dot 1.2s ease-in-out infinite; }
+        .status-dot.connected { background: var(--success); box-shadow: 0 0 12px var(--success-glow); }
+        .status-dot.disconnected { background: var(--danger); }
+        .status-dot.locked { background: var(--danger); animation: pulse-dot 1.2s ease-in-out infinite; }
+        @keyframes pulse-dot {
+            0%,100% { opacity: 0.4; transform: scale(0.85); }
+            50% { opacity: 1; transform: scale(1.1); }
+        }
+        .status-text { font-size: 12px; font-weight: 500; color: var(--text-secondary); }
+        .status-right { display: flex; align-items: center; gap: 6px; }
+        .badge {
+            font-size: 10px; font-weight: 600; padding: 3px 8px; border-radius: 20px;
+            background: var(--accent-dim); color: var(--accent);
+            border: 1px solid rgba(88,166,255,0.15);
+        }
+        .lock-badge {
+            font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px;
+            background: rgba(248,81,73,0.12); color: var(--danger);
+            border: 1px solid rgba(248,81,73,0.25); display: none;
+        }
+
+        /* Connection Panel */
+        .connection-panel {
+            padding: 10px 20px; background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color); flex-shrink: 0;
+        }
+        .connection-row { display: flex; align-items: center; gap: 8px; }
+        .connection-row .url {
+            font-family: var(--font-mono); font-size: 12px; color: var(--text-secondary);
+            background: var(--bg-tertiary); padding: 5px 10px;
+            border-radius: var(--radius-sm); flex: 1;
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            border: 1px solid var(--border-color);
+        }
+        .btn-icon {
+            width: 32px; height: 32px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color); background: var(--bg-tertiary);
+            color: var(--text-secondary); cursor: pointer; display: flex;
+            align-items: center; justify-content: center;
+            transition: all 0.2s ease; font-size: 14px; flex-shrink: 0;
+        }
+        .btn-icon:active { background: var(--bg-hover); color: var(--text-primary); border-color: var(--accent); }
+        .btn-icon.copied { background: var(--success); border-color: var(--success); color: white; }
+
+        /* Auth Screen */
+        .auth-screen {
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; flex: 1; padding: 32px 24px;
+            text-align: center; gap: 12px;
+        }
+        .auth-icon {
+            width: 72px; height: 72px; border-radius: 50%;
+            background: var(--accent-dim); display: flex;
+            align-items: center; justify-content: center;
+            font-size: 32px; color: var(--accent); margin-bottom: 4px;
+        }
+        .auth-screen h2 { font-size: 22px; font-weight: 600; color: var(--text-primary); }
+        .auth-screen p { font-size: 14px; color: var(--text-secondary); line-height: 1.6; max-width: 300px; }
+        .pin-input-wrap {
+            display: flex; gap: 8px; width: 100%; max-width: 320px; margin-top: 8px;
+        }
+        .pin-input-wrap input {
+            flex: 1; padding: 14px 16px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color); background: var(--bg-secondary);
+            color: var(--text-primary); font-size: 24px; font-family: var(--font-mono);
+            text-align: center; letter-spacing: 8px;
+            outline: none; transition: border-color 0.2s ease;
+        }
+        .pin-input-wrap input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .pin-input-wrap input::placeholder { letter-spacing: 2px; font-size: 14px; }
+        .btn-pin-submit {
+            padding: 14px 24px; border: none; border-radius: var(--radius-sm);
+            background: var(--accent); color: white; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s ease; flex-shrink: 0;
+        }
+        .btn-pin-submit:active { transform: scale(0.97); }
+        .btn-pin-submit:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .auth-error {
+            font-size: 13px; color: var(--danger); min-height: 20px;
+            margin-top: 4px;
+        }
+        .auth-retry-note { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+        /* Text Input (hidden until auth) */
+        .main-ui { display: none; flex-direction: column; flex: 1; min-height: 0; }
+
+        /* Lock overlay banner */
+        .lock-banner {
+            display: none; align-items: center; justify-content: center; gap: 8px;
+            padding: 8px 20px; background: rgba(248,81,73,0.1);
+            border-bottom: 1px solid rgba(248,81,73,0.2); flex-shrink: 0;
+            font-size: 13px; font-weight: 600; color: var(--danger);
+        }
+
+        /* Quick Keys */
+        .quick-keys {
+            display: flex; gap: 6px; padding: 4px 16px 8px; flex-shrink: 0;
+            overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
+        }
+        .quick-keys::-webkit-scrollbar { display: none; }
+        .quick-key {
+            padding: 8px 14px; border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color); background: var(--bg-secondary);
+            color: var(--text-secondary); font-size: 13px; font-weight: 500;
+            cursor: pointer; transition: all 0.15s ease; flex-shrink: 0; white-space: nowrap;
+        }
+        .quick-key:active { background: var(--bg-hover); border-color: var(--accent); color: var(--accent); transform: scale(0.94); }
+        .quick-key:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+        /* Input area */
+        .input-area { flex: 1; display: flex; flex-direction: column; padding: 8px 16px; min-height: 0; }
+        .input-wrapper {
+            flex: 1; display: flex; flex-direction: column;
+            background: var(--bg-secondary); border-radius: var(--radius-md);
+            border: 1px solid var(--border-color); overflow: hidden;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+        .input-wrapper:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+        .input-wrapper textarea {
+            flex: 1; width: 100%; padding: 16px 16px 8px;
+            background: transparent; border: none; outline: none;
+            color: var(--text-primary); font-size: 18px; font-family: inherit;
+            line-height: 1.6; resize: none; min-height: 120px; touch-action: manipulation;
+        }
+        .input-wrapper textarea::placeholder { color: var(--text-muted); font-weight: 400; }
+        .input-wrapper textarea:disabled { opacity: 0.5; }
+        .input-footer {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 6px 16px 10px; flex-shrink: 0;
+        }
+        .char-count {
+            font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);
+            transition: color 0.2s ease;
+        }
+        .char-count.warning { color: var(--warning); }
+        .char-count.danger { color: var(--danger); }
+        .input-options { display: flex; align-items: center; gap: 8px; }
+
+        /* Live typing indicator */
+        .toggle-wrap.live-active .toggle { background: var(--success); border-color: var(--success); }
+        .toggle-wrap.live-active .toggle::after { transform: translateX(18px); }
+        .live-dot {
+            display: none; width: 6px; height: 6px; border-radius: 50%;
+            background: var(--success); animation: pulse-dot 0.8s ease-in-out infinite;
+            margin-left: 2px;
+        }
+        .live-dot.active { display: inline-block; }
+        .live-indicator {
+            font-size: 10px; font-weight: 600; color: var(--success);
+            display: none; align-items: center; gap: 4px;
+            padding: 2px 8px; border-radius: 10px;
+            background: rgba(63,185,80,0.1);
+        }
+        .live-indicator.active { display: flex; }
+        .input-footer.live-mode .char-count { color: var(--success); }
+
+        /* Toggle */
+        .toggle-wrap { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-secondary); }
+        .toggle {
+            position: relative; width: 40px; height: 22px;
+            background: var(--bg-tertiary); border-radius: 12px;
+            border: 1px solid var(--border-color); cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4,0,0.2,1); flex-shrink: 0;
+        }
+        .toggle.active { background: var(--accent); border-color: var(--accent); }
+        .toggle::after {
+            content: ''; position: absolute; top: 2px; left: 2px;
+            width: 16px; height: 16px; border-radius: 50%; background: white;
+            transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .toggle.active::after { transform: translateX(18px); }
+
+        /* Live toggle — prominent green with glow */
+        .live-toggle-wrap { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; letter-spacing: 0.5px; }
+        .live-toggle-wrap .toggle { width: 44px; height: 24px; }
+        .live-toggle-wrap .toggle::after { width: 18px; height: 18px; }
+        .live-toggle-wrap .toggle.active::after { transform: translateX(20px); }
+        .live-toggle-wrap .toggle.active {
+            background: var(--success); border-color: var(--success);
+            box-shadow: 0 0 12px var(--success-glow);
+        }
+        .live-toggle-wrap .toggle.active + .live-label { color: var(--success); }
+        .live-label {
+            color: var(--text-muted); font-size: 11px; font-weight: 700;
+            transition: color 0.3s ease; min-width: 32px;
+        }
+        .live-toggle-wrap .live-badge {
+            display: none; font-size: 9px; font-weight: 700; padding: 2px 6px;
+            border-radius: 10px; background: var(--success-glow); color: var(--success);
+            animation: pulse-dot 1.2s ease-in-out infinite;
+        }
+        .live-toggle-wrap .live-badge.active { display: inline-block; }
+
+        /* Live mode visual changes */
+        .input-wrapper.live-mode { border-color: var(--success); }
+        .input-wrapper.live-mode:focus-within { box-shadow: 0 0 0 3px var(--success-glow); }
+        .input-footer.live-mode .char-count { color: var(--success); }
+        .input-footer .status-hint {
+            font-size: 10px; color: var(--text-muted); font-weight: 500;
+            display: none; align-items: center; gap: 4px;
+        }
+        .input-footer.live-mode .status-hint { display: flex; }
+        .input-footer.live-mode .status-hint .live-icon {
+            width: 5px; height: 5px; border-radius: 50%;
+            background: var(--success); display: inline-block;
+            animation: pulse-dot 0.8s ease-in-out infinite;
+        }
+        .send-live-note {
+            display: none; font-size: 10px; color: var(--text-muted);
+            text-align: center; padding: 2px 0;
+        }
+        .send-live-note.active { display: block; }
+
+        /* Action bar */
+        .action-bar { display: flex; gap: 8px; padding: 4px 16px 8px; flex-shrink: 0; }
+        .btn-primary {
+            flex: 1; padding: 14px 20px; border: none; border-radius: var(--radius-md);
+            background: var(--accent); color: #fff; font-size: 16px; font-weight: 600;
+            cursor: pointer; transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .btn-primary:active { transform: scale(0.97); }
+        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-secondary {
+            padding: 14px 18px; border: 1px solid var(--border-color);
+            border-radius: var(--radius-md); background: var(--bg-secondary);
+            color: var(--text-secondary); font-size: 16px; cursor: pointer;
+            transition: all 0.2s ease; display: flex; align-items: center;
+            justify-content: center; gap: 6px; flex-shrink: 0;
+        }
+        .btn-secondary:active { background: var(--bg-hover); transform: scale(0.97); }
+        .btn-secondary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .btn-danger {
+            padding: 14px 16px; border: 1px solid rgba(248,81,73,0.3);
+            border-radius: var(--radius-md); background: rgba(248,81,73,0.08);
+            color: var(--danger); font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s ease; display: flex; align-items: center;
+            justify-content: center; gap: 6px; flex-shrink: 0;
+        }
+        .btn-danger:active { background: rgba(248,81,73,0.18); transform: scale(0.97); }
+
+        /* History */
+        .history-area {
+            flex-shrink: 0; max-height: 0; overflow: hidden;
+            transition: max-height 0.4s cubic-bezier(0.4,0,0.2,1);
+            background: var(--bg-secondary); border-top: 1px solid var(--border-color);
+        }
+        .history-area.open { max-height: 200px; }
+        .history-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 20px; }
+        .history-header span { font-size: 12px; color: var(--text-muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+        .history-header button { background: none; border: none; color: var(--text-muted); font-size: 12px; cursor: pointer; }
+        .history-list { padding: 0 20px 12px; display: flex; flex-direction: column; gap: 4px; max-height: 140px; overflow-y: auto; }
+        .history-item {
+            padding: 6px 10px; border-radius: var(--radius-sm); background: var(--bg-tertiary);
+            font-size: 13px; color: var(--text-secondary); font-family: var(--font-mono);
+            overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+            cursor: pointer; transition: background 0.15s ease; border: 1px solid transparent;
+        }
+        .history-item:active { background: var(--bg-hover); border-color: var(--accent-dim); }
+
+        /* Toast */
+        .toast-container {
+            position: fixed; bottom: calc(var(--safe-bottom) + 80px);
+            left: 50%; transform: translateX(-50%); z-index: 1000;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 10px 20px; border-radius: var(--radius-sm);
+            background: var(--bg-card); border: 1px solid var(--border-color);
+            color: var(--text-primary); font-size: 14px; font-weight: 500;
+            box-shadow: var(--shadow-lg);
+            opacity: 0; transform: translateY(16px) scale(0.95);
+            transition: all 0.3s cubic-bezier(0.4,0,0.2,1);
+            white-space: nowrap; backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .toast.show { opacity: 1; transform: translateY(0) scale(1); }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 2px; }
+
+        @media (min-width: 481px) {
+            .app-shell { border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color); }
+        }
+        @media (max-width: 380px) {
+            .input-wrapper textarea { font-size: 16px; padding: 12px 12px 4px; }
+            .btn-primary { padding: 12px 16px; font-size: 14px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-shell" id="app">
+
+    <!-- Status Bar -->
+    <div class="status-bar">
+        <div class="status-left">
+            <span class="logo">NoteStream</span>
+        </div>
+        <div class="status-right">
+            <span class="lock-badge" id="lockBadge">🔒 Locked</span>
+            <div class="status-indicator">
+                <span class="status-dot disconnected" id="statusDot"></span>
+                <span class="status-text" id="statusText">Disconnected</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connection Info -->
+    <div class="connection-panel" id="connectionPanel">
+        <div class="connection-row">
+            <span class="url" id="serverUrl">Connecting...</span>
+            <button class="btn-icon" id="copyBtn" title="Copy URL">📋</button>
+            <button class="btn-icon" id="reconnectBtn" title="Reconnect">🔄</button>
+        </div>
+    </div>
+
+    <!-- === AUTH SCREEN === -->
+    <div class="auth-screen" id="authScreen">
+        <div class="auth-icon">🔐</div>
+        <h2>Authentication Required</h2>
+        <p>Enter the 6-digit PIN shown in the server terminal on your PC.</p>
+        <div class="pin-input-wrap">
+            <input type="password" id="pinInput" maxlength="6" inputmode="numeric" pattern="[0-9]*"
+                   placeholder="000000" autocomplete="off">
+            <button class="btn-pin-submit" id="pinSubmitBtn">Unlock</button>
+        </div>
+        <div class="auth-error" id="authError"></div>
+        <div class="auth-retry-note" id="authRetryNote"></div>
+    </div>
+
+    <!-- === MAIN UI (shown after auth) === -->
+    <div class="main-ui" id="mainUi">
+
+        <!-- Lock banner -->
+        <div class="lock-banner" id="lockBanner">🔒 Typing is locked — press Unlock on your phone or server</div>
+
+        <!-- Quick Keys -->
+        <div class="quick-keys" id="quickKeys">
+            <button class="quick-key" data-key="tab">Tab</button>
+            <button class="quick-key" data-key="escape">Esc</button>
+            <button class="quick-key" data-key="enter">↵ Enter</button>
+            <button class="quick-key" data-key="backspace">⌫ Bksp</button>
+            <button class="quick-key" data-key="delete">⌦ Del</button>
+        </div>
+
+        <!-- Input -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <textarea id="textInput" placeholder="Start typing..."
+                          autocomplete="off" autocorrect="off"
+                          autocapitalize="off" spellcheck="false"></textarea>
+                <div class="input-footer">
+                    <span class="char-count" id="charCount">0</span>
+                    <div class="input-options">
+                        <div class="toggle-wrap">
+                            <span>↵ Enter</span>
+                            <div class="toggle" id="enterToggle" role="button" tabindex="0"></div>
+                        </div>
+                        <div class="live-toggle-wrap" id="liveToggleWrap">
+                            <div class="toggle" id="liveToggle" role="button" tabindex="0"></div>
+                            <span class="live-label" id="liveLabel">OFF</span>
+                            <span class="live-badge" id="liveBadge">LIVE</span>
+                        </div>
+                        <span class="status-hint"><span class="live-icon"></span> Streaming</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="send-live-note" style="text-align:center;font-size:10px;color:var(--text-muted);padding:0 16px 2px">
+            ⚡ Streaming active — Send or Enter to flush &amp; clear
+        </div>
+
+        <!-- Action bar -->
+        <div class="action-bar">
+            <button class="btn-primary" id="sendBtn" disabled><span>✈</span> Send</button>
+            <button class="btn-danger" id="lockBtn">🔒 Lock</button>
+            <button class="btn-secondary" id="clearBtn" disabled title="Clear text">🗑</button>
+        </div>
+
+        <!-- History -->
+        <div class="history-area" id="historyArea">
+            <div class="history-header">
+                <span>Sent History</span>
+                <button id="clearHistoryBtn">Clear</button>
+            </div>
+            <div class="history-list" id="historyList"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container"><div class="toast" id="toast"></div></div>
+
+<script>
+(function() {
+    'use strict';
+
+    // ---- State ----
+    let ws = null;
+    let isConnected = false;
+    let isAuthenticated = false;
+    let isLocked = false;
+    let reconnectTimer = null;
+    let reconnectAttempts = 0;
+    const MAX_RECONNECT_ATTEMPTS = 20;
+    let enterOnSend = false;
+    let isLiveMode = false;
+    let liveTimer = null;
+    let lastSentLength = 0;
+    let history = JSON.parse(localStorage.getItem('notestream_history') || '[]');
+    const MAX_HISTORY = 20;
+    const LIVE_DEBOUNCE_MS = 60;
+
+    // ---- DOM ----
+    const textInput = document.getElementById('textInput');
+    const sendBtn = document.getElementById('sendBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const lockBtn = document.getElementById('lockBtn');
+    const charCount = document.getElementById('charCount');
+    const statusDot = document.getElementById('statusDot');
+    const statusText = document.getElementById('statusText');
+    const serverUrl = document.getElementById('serverUrl');
+    const copyBtn = document.getElementById('copyBtn');
+    const reconnectBtn = document.getElementById('reconnectBtn');
+    const enterToggle = document.getElementById('enterToggle');
+    const historyArea = document.getElementById('historyArea');
+    const historyList = document.getElementById('historyList');
+    const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+    const toast = document.getElementById('toast');
+    const lockBadge = document.getElementById('lockBadge');
+    const lockBanner = document.getElementById('lockBanner');
+    const connectionPanel = document.getElementById('connectionPanel');
+    const authScreen = document.getElementById('authScreen');
+    const mainUi = document.getElementById('mainUi');
+    const pinInput = document.getElementById('pinInput');
+    const pinSubmitBtn = document.getElementById('pinSubmitBtn');
+    const authError = document.getElementById('authError');
+    const authRetryNote = document.getElementById('authRetryNote');
+    const quickKeys = document.getElementById('quickKeys');
+    const liveToggle = document.getElementById('liveToggle');
+    const liveToggleWrap = document.getElementById('liveToggleWrap');
+    const liveLabel = document.getElementById('liveLabel');
+    const liveBadge = document.getElementById('liveBadge');
+    const inputFooter = document.querySelector('.input-footer');
+    const inputWrapper = document.querySelector('.input-wrapper');
+
+    // ---- WebSocket ----
+    function getWsUrl() {
+        const loc = window.location;
+        const protocol = loc.protocol === 'https:' ? 'wss:' : 'ws:';
+        return protocol + '//' + loc.host + '/ws';
+    }
+
+    function connect() {
+        if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+
+        setStatus('connecting', 'Connecting...');
+        serverUrl.textContent = window.location.href;
+
+        try {
+            ws = new WebSocket(getWsUrl());
+        } catch (e) {
+            setStatus('disconnected', 'Connection failed');
+            scheduleReconnect();
+            return;
+        }
+
+        ws.onopen = () => {
+            isConnected = true;
+            reconnectAttempts = 0;
+            setStatus('connected', 'Authenticating...');
+            // Don't enable inputs yet — wait for auth
+        };
+
+        ws.onclose = () => {
+            isConnected = false;
+            isAuthenticated = false;
+            setStatus('disconnected', 'Disconnected');
+            disableAllInputs();
+            authScreen.style.display = 'flex';
+            mainUi.style.display = 'none';
+            ws = null;
+            scheduleReconnect();
+        };
+
+        ws.onerror = () => {};
+
+        ws.onmessage = (event) => {
+            try {
+                const data = JSON.parse(event.data);
+                handleServerMessage(data);
+            } catch (e) {
+                // ignore
+            }
+        };
+    }
+
+    function handleServerMessage(data) {
+        switch (data.action) {
+
+            case 'auth_required':
+                setStatus('connected', 'Enter PIN');
+                authScreen.style.display = 'flex';
+                mainUi.style.display = 'none';
+                pinInput.focus();
+                showToast(data.message || 'Enter the PIN');
+                break;
+
+            case 'auth_ok':
+                isAuthenticated = true;
+                isLocked = data.locked || false;
+                authScreen.style.display = 'none';
+                mainUi.style.display = 'flex';
+                setStatus('connected', isLocked ? 'Locked' : 'Ready');
+                updateLockUI();
+                enableAllInputs();
+                textInput.focus();
+                showToast('Authenticated! Start typing.');
+                // Get initial status
+                safeSend(JSON.stringify({ action: 'get_status' }));
+                break;
+
+            case 'auth_failed':
+                authError.textContent = data.message || 'Wrong PIN';
+                if (data.final) {
+                    pinInput.disabled = true;
+                    pinSubmitBtn.disabled = true;
+                    authRetryNote.textContent = 'Connection will close. Refresh to retry.';
+                    showToast('Too many failed attempts');
+                } else {
+                    pinInput.value = '';
+                    pinInput.focus();
+                }
+                break;
+
+            case 'pong':
+                // heartbeat response, update lock state
+                if (data.locked !== undefined) {
+                    isLocked = data.locked;
+                    updateLockUI();
+                }
+                break;
+
+            case 'lock_status':
+                isLocked = data.locked;
+                updateLockUI();
+                showToast(isLocked ? 'Typing locked' : 'Typing unlocked');
+                break;
+
+            case 'status':
+                if (data.locked !== undefined) {
+                    isLocked = data.locked;
+                    updateLockUI();
+                }
+                break;
+
+            case 'disconnect':
+                showToast(data.message || 'Disconnected');
+                if (data.reason === 'replaced') {
+                    showToast('Another device authenticated. You were disconnected.');
+                }
+                resetLiveMode();
+                if (ws) { ws.close(); }
+                break;
+
+            case 'error':
+                showToast('Error: ' + (data.message || 'Unknown error'));
+                break;
+        }
+    }
+
+    function scheduleReconnect() {
+        if (reconnectTimer) return;
+        if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+            setStatus('disconnected', 'Retry limit');
+            showToast('Could not reconnect. Refresh to try again.');
+            return;
+        }
+        reconnectAttempts++;
+        const delay = Math.min(1000 * Math.pow(1.5, reconnectAttempts), 15000);
+        reconnectTimer = setTimeout(() => {
+            reconnectTimer = null;
+            setStatus('connecting', 'Reconnecting...');
+            connect();
+        }, delay);
+    }
+
+    function setStatus(state, text) {
+        statusDot.className = 'status-dot ' + state;
+        statusText.textContent = text;
+    }
+
+    function safeSend(msg) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            try { ws.send(msg); } catch(e) {}
+        }
+    }
+
+    // ---- Auth ----
+    function submitPin() {
+        const pin = pinInput.value.trim();
+        if (pin.length !== 6 || !/^\d{6}$/.test(pin)) {
+            authError.textContent = 'Enter a 6-digit PIN';
+            return;
+        }
+        authError.textContent = '';
+        safeSend(JSON.stringify({ action: 'auth', pin: pin }));
+        pinSubmitBtn.textContent = '...';
+        pinSubmitBtn.disabled = true;
+    }
+
+    pinInput.addEventListener('input', () => {
+        authError.textContent = '';
+        if (pinInput.value.length === 6) {
+            submitPin();
+        }
+    });
+    pinInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') submitPin();
+    });
+    pinSubmitBtn.addEventListener('click', submitPin);
+
+    // ---- Send ----
+    function sendText(text, addToHist) {
+        if (!isConnected || !isAuthenticated || !ws || !text.trim()) return;
+        if (isLocked) { showToast('Typing is locked'); return; }
+
+        safeSend(JSON.stringify({
+            action: 'type',
+            text: text,
+            enter: enterOnSend,
+        }));
+
+        if (addToHist !== false) {
+            addToHistory(text);
+        }
+        textInput.value = '';
+        lastSentLength = 0;
+        updateCharCount();
+        textInput.focus();
+
+        sendBtn.style.transform = 'scale(0.95)';
+        setTimeout(() => { sendBtn.style.transform = ''; }, 150);
+    }
+
+    // ---- Live typing (streaming) ----
+    function handleLiveInput() {
+        if (!isLiveMode || !isConnected || !isAuthenticated || isLocked) return;
+
+        const text = textInput.value;
+
+        if (text.length > lastSentLength) {
+            // New characters were added — send the delta
+            const delta = text.slice(lastSentLength);
+
+            if (liveTimer) clearTimeout(liveTimer);
+            liveTimer = setTimeout(() => {
+                if (!isLiveMode || !isConnected || !isAuthenticated || isLocked) return;
+                if (!delta.trim()) return;
+
+                safeSend(JSON.stringify({
+                    action: 'live_type',
+                    text: delta,
+                    enter: false,
+                }));
+
+                // Mark these characters as sent — text stays in textarea
+                lastSentLength = textInput.value.length;
+                liveTimer = null;
+            }, LIVE_DEBOUNCE_MS);
+        } else if (text.length < lastSentLength) {
+            // User deleted text — cancel pending timer (delta would be stale)
+            // then adjust tracking so new typing resumes streaming
+            if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
+            lastSentLength = text.length;
+        }
+    }
+
+    /** Flush all pending (unsent) text immediately — used on Enter key or Send button in live mode. */
+    function flushLiveText(withEnter) {
+        if (liveTimer) {
+            clearTimeout(liveTimer);
+            liveTimer = null;
+        }
+
+        const text = textInput.value;
+        // Use >= so pre-existing text (when live was toggled on) is also sent
+        if (text.length >= lastSentLength) {
+            const delta = text.slice(lastSentLength);
+            if (delta.trim() && isConnected && isAuthenticated && !isLocked) {
+                safeSend(JSON.stringify({
+                    action: 'live_type',
+                    text: delta,
+                    enter: withEnter ? enterOnSend : false,
+                }));
+                addToHistory(delta);
+            }
+            // Only clear when we had text to flush
+            textInput.value = '';
+            lastSentLength = 0;
+            updateCharCount();
+            textInput.focus();
+        }
+    }
+
+    function toggleLiveMode() {
+        isLiveMode = !isLiveMode;
+
+        // Toggle UI classes
+        liveToggle.classList.toggle('active', isLiveMode);
+        liveLabel.textContent = isLiveMode ? 'ON' : 'OFF';
+        liveLabel.style.color = isLiveMode ? 'var(--success)' : '';
+        liveBadge.classList.toggle('active', isLiveMode);
+        inputFooter.classList.toggle('live-mode', isLiveMode);
+        inputWrapper.classList.toggle('live-mode', isLiveMode);
+        document.querySelector('.send-live-note')?.classList.toggle('active', isLiveMode);
+
+        if (isLiveMode) {
+            // Send any existing text immediately so lastSentLength stays accurate
+            const existing = textInput.value;
+            if (existing.trim() && isConnected && isAuthenticated) {
+                safeSend(JSON.stringify({
+                    action: 'live_type',
+                    text: existing,
+                    enter: false,
+                }));
+                addToHistory(existing);
+            }
+            lastSentLength = textInput.value.length;
+            showToast('Live streaming ON — characters sent as you type');
+        } else {
+            if (liveTimer) {
+                clearTimeout(liveTimer);
+                liveTimer = null;
+            }
+            showToast('Live streaming OFF');
+        }
+    }
+
+    function sendSpecialKey(key) {
+        if (!isConnected || !isAuthenticated || !ws) return;
+        if (isLocked) { showToast('Typing is locked'); return; }
+        safeSend(JSON.stringify({ action: 'key', key: key }));
+    }
+
+    // ---- Lock / Unlock ----
+    function toggleLock() {
+        if (!isAuthenticated || !ws) return;
+        const action = isLocked ? 'unlock' : 'lock';
+        safeSend(JSON.stringify({ action: action }));
+    }
+
+    lockBtn.addEventListener('click', toggleLock);
+
+    function updateLockUI() {
+        if (isLocked) {
+            lockBadge.style.display = 'inline-block';
+            lockBanner.style.display = 'flex';
+            lockBtn.textContent = '🔓 Unlock';
+            lockBtn.className = 'btn-secondary';
+            sendBtn.disabled = true;
+            textInput.disabled = true;
+            document.querySelectorAll('.quick-key').forEach(b => b.disabled = true);
+            setStatus('locked', 'Locked');
+        } else {
+            lockBadge.style.display = 'none';
+            lockBanner.style.display = 'none';
+            lockBtn.textContent = '🔒 Lock';
+            lockBtn.className = 'btn-danger';
+            if (isAuthenticated) {
+                sendBtn.disabled = false;
+                textInput.disabled = false;
+                document.querySelectorAll('.quick-key').forEach(b => b.disabled = false);
+                setStatus('connected', 'Ready');
+            }
+        }
+    }
+
+    // ---- Enable / disable ----
+    function enableAllInputs() {
+        sendBtn.disabled = isLocked;
+        clearBtn.disabled = false;
+        textInput.disabled = isLocked;
+        document.querySelectorAll('.quick-key').forEach(b => b.disabled = isLocked);
+        if (!isLocked) textInput.focus();
+    }
+
+    function disableAllInputs() {
+        sendBtn.disabled = true;
+        clearBtn.disabled = true;
+        textInput.disabled = true;
+        pinSubmitBtn.disabled = false;
+        pinSubmitBtn.textContent = 'Unlock';
+        pinInput.disabled = false;
+        authError.textContent = '';
+        authRetryNote.textContent = '';
+        document.querySelectorAll('.quick-key').forEach(b => b.disabled = true);
+    }
+
+    // ---- History ----
+    function addToHistory(text) {
+        const trimmed = text.trim();
+        if (!trimmed) return;
+        history.unshift(trimmed);
+        if (history.length > MAX_HISTORY) history = history.slice(0, MAX_HISTORY);
+        localStorage.setItem('notestream_history', JSON.stringify(history));
+        renderHistory();
+    }
+
+    function renderHistory() {
+        historyList.innerHTML = '';
+        if (history.length === 0) { historyArea.classList.remove('open'); return; }
+        historyArea.classList.add('open');
+        history.forEach((text) => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.textContent = text;
+            item.addEventListener('click', () => {
+                textInput.value = text;
+                updateCharCount();
+                textInput.focus();
+            });
+            historyList.appendChild(item);
+        });
+    }
+
+    // ---- UI updates ----
+    function updateCharCount() {
+        const len = textInput.value.length;
+        charCount.textContent = len.toLocaleString();
+        charCount.className = 'char-count';
+    }
+
+    function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(toast._hideTimer);
+        toast._hideTimer = setTimeout(() => { toast.classList.remove('show'); }, 2500);
+    }
+
+    // ---- Event handlers ----
+    sendBtn.addEventListener('click', () => {
+        if (isLiveMode) {
+            flushLiveText(true);
+        } else {
+            sendText(textInput.value, true);
+        }
+    });
+    textInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            if (isLiveMode) {
+                flushLiveText(true);
+            } else {
+                sendText(textInput.value, true);
+            }
+        }
+    });
+    textInput.addEventListener('input', () => {
+        updateCharCount();
+        if (isLiveMode) handleLiveInput();
+    });
+
+    clearBtn.addEventListener('click', () => {
+        textInput.value = '';
+        updateCharCount();
+        textInput.focus();
+    });
+
+    enterToggle.addEventListener('click', () => {
+        enterOnSend = !enterOnSend;
+        enterToggle.classList.toggle('active', enterOnSend);
+    });
+
+    liveToggle.addEventListener('click', toggleLiveMode);
+
+    copyBtn.addEventListener('click', () => {
+        const url = window.location.href;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(url).then(() => {
+                copyBtn.classList.add('copied');
+                copyBtn.textContent = 'Copied!';
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyBtn.textContent = '📋';
+                }, 2000);
+                showToast('URL copied');
+            });
+        } else {
+            showToast('Copy not supported');
+        }
+    });
+
+    reconnectBtn.addEventListener('click', () => {
+        if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+        if (ws) { ws.close(); ws = null; }
+        reconnectAttempts = 0;
+        pinInput.value = '';
+        pinInput.disabled = false;
+        pinSubmitBtn.disabled = false;
+        pinSubmitBtn.textContent = 'Unlock';
+        authError.textContent = '';
+        authRetryNote.textContent = '';
+        connect();
+    });
+
+    document.querySelectorAll('.quick-key').forEach((btn) => {
+        btn.addEventListener('click', () => {
+            const key = btn.dataset.key;
+            sendSpecialKey(key);
+        });
+    });
+
+    clearHistoryBtn.addEventListener('click', () => {
+        history = [];
+        localStorage.removeItem('notestream_history');
+        renderHistory();
+        showToast('History cleared');
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.ctrlKey && e.key === 'Enter') { e.preventDefault(); enterToggle.click(); }
+    });
+
+    // ---- Init live toggle state ----
+    function resetLiveMode() {
+        if (isLiveMode) {
+            isLiveMode = false;
+            liveToggle.classList.remove('active');
+            liveLabel.textContent = 'OFF';
+            liveLabel.style.color = '';
+            liveBadge.classList.remove('active');
+            inputFooter.classList.remove('live-mode');
+            inputWrapper.classList.remove('live-mode');
+            document.querySelector('.send-live-note')?.classList.remove('active');
+            if (liveTimer) { clearTimeout(liveTimer); liveTimer = null; }
+        }
+    }
+
+    // ---- Init ----
+    updateCharCount();
+    renderHistory();
+    if (enterOnSend) enterToggle.classList.add('active');
+
+    // Show auth screen by default
+    authScreen.style.display = 'flex';
+    mainUi.style.display = 'none';
+
+    connect();
+
+    // Periodic status check
+    setInterval(() => {
+        if (isConnected && isAuthenticated && ws && ws.readyState === WebSocket.OPEN) {
+            safeSend(JSON.stringify({ action: 'ping' }));
+        }
+    }, 30000);
+})();
+</script>
+</body>
+</html>

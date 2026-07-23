@@ -1,0 +1,19 @@
+# Rust
+target/
+Cargo.lock
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Tooling
+.freebuff/
+
+# Logs
+*.log

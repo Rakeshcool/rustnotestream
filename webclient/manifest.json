@@ -1,0 +1,10 @@
+{
+  "name": "NoteStream",
+  "short_name": "NoteStream",
+  "description": "Type from your Android device into any Windows application",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0d1117",
+  "theme_color": "#0d1117"
+}
