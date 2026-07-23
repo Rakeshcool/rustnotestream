@@ -48,7 +48,7 @@ $ cargo run --release
 ### 1. Install & Build
 
 ```bash
-git clone [<repo-url>](https://github.com/Rakeshcool/rustnotestream) notestream
+git clone (https://github.com/Rakeshcool/rustnotestream) notestream
 cd notestream
 cargo build --release
 ```
